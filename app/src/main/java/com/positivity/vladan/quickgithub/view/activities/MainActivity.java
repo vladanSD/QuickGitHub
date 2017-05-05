@@ -32,14 +32,14 @@ import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity implements ItemAdapter.OnListItemClickInterface{
 
-    private ItemAdapter adapter;
+    private ItemAdapter mAdapter;
     private RecyclerView view;
     private Toast mToast;
 
     private EditText searchText;
     private ProgressBar progressBar;
 
-    ArrayList<Item> listOfItems = new ArrayList<>();
+    private static ArrayList<Item> listOfItems = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +50,8 @@ public class MainActivity extends AppCompatActivity implements ItemAdapter.OnLis
         searchText = (EditText) findViewById(R.id.et_search);
         progressBar = (ProgressBar) findViewById(R.id.pb_loading_indicator);
         view = (RecyclerView) findViewById(R.id.rv_list);
+
+        mAdapter = new ItemAdapter(listOfItems, this);
 
         //displaying data to avoid skipping null attachment on recycler viewer
         displayData();
@@ -81,15 +83,13 @@ public class MainActivity extends AppCompatActivity implements ItemAdapter.OnLis
     }
 
 
-    //creating layout manager and adapter for recycler viewer
+    //creating layout manager and mAdapter for recycler viewer
     private void displayData(){
 
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         view.setLayoutManager(layoutManager);
         view.setHasFixedSize(true);
-
-        adapter = new ItemAdapter(listOfItems, this);
-        view.setAdapter(adapter);
+        view.setAdapter(mAdapter);
     }
 
     //calling function for creating url, and pass it to new query task
@@ -144,7 +144,7 @@ public class MainActivity extends AppCompatActivity implements ItemAdapter.OnLis
                 e.printStackTrace();
             }
             return githubSearchResults;}catch (Exception e){
-                System.out.println(e);
+                System.out.println(e.getMessage());
             }
             return null;
         }

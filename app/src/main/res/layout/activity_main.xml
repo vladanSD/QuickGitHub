@@ -12,7 +12,7 @@
     <ImageView
         android:id="@+id/imageView"
         android:layout_width="0dp"
-        android:layout_height="131dp"
+        android:layout_height="83dp"
         app:srcCompat="@drawable/github"
         android:contentDescription="@string/gitHubImg"
         app:layout_constraintTop_toTopOf="parent"
