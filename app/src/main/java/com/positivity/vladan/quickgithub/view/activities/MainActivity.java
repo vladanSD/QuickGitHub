@@ -39,6 +39,7 @@ public class MainActivity extends AppCompatActivity implements ItemAdapter.OnLis
 
     private static final String SEARCH_QUERY_EXTRA = "query";
     private static final int GITHUB_LOADER = 28;
+    private static final int OTHER_LOADER = 30;
 
     private ItemAdapter mAdapter;
     private RecyclerView view;
