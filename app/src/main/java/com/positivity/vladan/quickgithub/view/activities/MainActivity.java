@@ -4,10 +4,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.AsyncTaskLoader;
+import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -30,7 +34,11 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity implements ItemAdapter.OnListItemClickInterface{
+public class MainActivity extends AppCompatActivity implements ItemAdapter.OnListItemClickInterface,
+        LoaderManager.LoaderCallbacks<String>{
+
+    private static final String SEARCH_QUERY_EXTRA = "query";
+    private static final int GITHUB_LOADER = 28;
 
     private ItemAdapter mAdapter;
     private RecyclerView view;
@@ -53,11 +61,14 @@ public class MainActivity extends AppCompatActivity implements ItemAdapter.OnLis
 
         mAdapter = new ItemAdapter(listOfItems, this);
 
+        getSupportLoaderManager().initLoader(GITHUB_LOADER, null, this);
+
         //displaying data to avoid skipping null attachment on recycler viewer
         displayData();
 
         //setting up onFocusChange
         setFocusChangedEvent(searchText);
+
 
     }
 
@@ -92,11 +103,23 @@ public class MainActivity extends AppCompatActivity implements ItemAdapter.OnLis
         view.setAdapter(mAdapter);
     }
 
-    //calling function for creating url, and pass it to new query task
+    //starting Search
     private void makeGithubSearchQuery() {
         String githubQuery = searchText.getText().toString();
         URL githubSearchUrl = GitHubUrlBuilder.buildUrl(githubQuery);
-        new GithubQueryTask().execute(githubSearchUrl);
+
+        Bundle bundle = new Bundle();
+        bundle.putString(SEARCH_QUERY_EXTRA, githubSearchUrl.toString());
+
+        LoaderManager loaderManager = getSupportLoaderManager();
+        Loader<String> loader = loaderManager.getLoader(GITHUB_LOADER);
+
+        if(loader == null ) {
+            loaderManager.initLoader(GITHUB_LOADER, bundle,this);
+        }else {
+            loaderManager.restartLoader(GITHUB_LOADER, bundle, this);
+        }
+
     }
 
     //hiding keyboard from screen
@@ -122,62 +145,89 @@ public class MainActivity extends AppCompatActivity implements ItemAdapter.OnLis
         });
     }
 
-    //get Data
-    public class GithubQueryTask extends AsyncTask<URL, Void, String>{
+    @Override
+    public Loader<String> onCreateLoader(int id, final Bundle args) {
+        return new AsyncTaskLoader<String>(this) {
 
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            progressBar.setVisibility(View.VISIBLE);
-        }
+            String mGitHubJson;
 
-        @Override
-        protected String doInBackground(URL... params) {
-            try{
+            @Override
+            protected void onStartLoading() {
+                if(args==null){
+                    return;
+                }
 
-            URL searchUrl = params[0];
-            String githubSearchResults = null;
-            NetworkUtils utils = new NetworkUtils();
-            try {
-                githubSearchResults = utils.run(searchUrl.toString());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return githubSearchResults;}catch (Exception e){
-                System.out.println(e.getMessage());
-            }
-            return null;
-        }
+                progressBar.setVisibility(View.VISIBLE);
 
-        @Override
-        protected void onPostExecute(String githubSearchResults) {
-            progressBar.setVisibility(View.INVISIBLE);
-            hideKeyboard();
-            if (githubSearchResults != null && !githubSearchResults.equals("")) {
-                try {
-                    JSONObject mainJSON = new JSONObject(githubSearchResults);
-                    JSONArray jsonArray = (JSONArray) mainJSON.get("items");
-                    listOfItems.clear();
-
-                    for (int i = 0; i < jsonArray.length(); i++) {
-                        JSONObject object = jsonArray.getJSONObject(i);
-                        int id = object.getInt("id");
-                        String ime = object.getString("name");
-                        String description = object.getString("description");
-                        String url = object.getString("html_url");
-                        Item item = new Item(id, ime, description, url);
-                        listOfItems.add(item);
-                    }
-
-                    displayData();
-
-
-
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                if(mGitHubJson!=null){
+                    deliverResult(mGitHubJson);
+                }else {
+                    forceLoad();
                 }
             }
+
+            @Override
+            public String loadInBackground() {
+                String githubSearch = args.getString(SEARCH_QUERY_EXTRA);
+
+                if(githubSearch==null || TextUtils.isEmpty(githubSearch)){
+                    return null;
+                }
+
+                try{
+                    NetworkUtils networkUtils = new NetworkUtils();
+                    return networkUtils.run(githubSearch);
+                }catch (IOException e){
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+
+            @Override
+            public void deliverResult(String data) {
+                mGitHubJson = data;
+                super.deliverResult(data);
+            }
+        };
+
+
+    }
+
+    @Override
+    public void onLoadFinished(Loader<String> loader, String githubSearchResults) {
+            progressBar.setVisibility(View.INVISIBLE);
+            hideKeyboard();
+        if (githubSearchResults != null && !githubSearchResults.equals("")) {
+            try {
+                JSONObject mainJSON = new JSONObject(githubSearchResults);
+                JSONArray jsonArray = (JSONArray) mainJSON.get("items");
+                listOfItems.clear();
+
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    JSONObject object = jsonArray.getJSONObject(i);
+                    int id = object.getInt("id");
+                    String ime = object.getString("name");
+                    String description = object.getString("description");
+                    String url = object.getString("html_url");
+                    Item item = new Item(id, ime, description, url);
+                    listOfItems.add(item);
+                }
+
+                displayData();
+
+
+
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
+    }
+
+
+
+    @Override
+    public void onLoaderReset(Loader<String> loader) {
+
     }
 
     @Override
